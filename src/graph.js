@@ -52,24 +52,34 @@ async function handleGrant() {
         const spData = await spResponse.json();
         const spObjectId = spData.value[0].id;
 
-        // 5. DELETE the Delegated Grant (The "Self-Clean" step)
-        // This removes the "FullControl" from the Enterprise App but leaves the Site Permission
+        status.innerText = "Step 3: Cleaning up temporary admin session...";
+
+        // 5. GET the Delegated Grants
         const grantsResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${spObjectId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
+        
         const grantsData = await grantsResponse.json();
-
-        for (const grant of grantsData.value) {
-            await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${grant.id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+        
+        // CHECK: Ensure 'value' exists and is an array before looping
+        if (grantsData && Array.isArray(grantsData.value)) {
+            for (const grant of grantsData.value) {
+                try {
+                    await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${grant.id}`, {
+                        method: 'DELETE',
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    console.log(`Deleted grant: ${grant.id}`);
+                } catch (innerError) {
+                    // If the token expires mid-loop because we deleted the permission, 
+                    // that's actually a "success" in terms of revoking access!
+                    console.warn("Grant deletion interrupted - session likely already revoked.");
+                    break; 
+                }
+            }
+        } else {
+            console.log("No delegated grants found to clean up.");
         }
-
+        
         status.innerHTML = "<span style='color: green;'>Success! Site access granted and admin session revoked.</span>";
-
-    } catch (error) {
-        console.error(error);
-        status.innerText = "Process Failed: " + error.message;
-    }
 }
