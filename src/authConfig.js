@@ -15,13 +15,12 @@ const msalConfig = {
 // We ask for Sites.FullControl.All DELEGATED. 
 // This means: "Let this app do what I (the Admin) can do while I'm here."
 const loginRequest = {
-    scopes: ["User.Read", "Sites.FullControl.All"]
+    scopes: ["User.Read"]
 };
 
 // The /.default will pull whatever permissions are configured in the app registration
 const tokenRequest = {
     //scopes: ["Sites.FullControl.All"],
     scopes: ["https://graph.microsoft.com/.default"],
-    prompt: "consent",
     forceRefresh: false
 };
