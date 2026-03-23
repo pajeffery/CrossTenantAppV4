@@ -49,7 +49,9 @@ async function adminOnboarding() {
 function redirectForAdminConsent() {
     const clientId = msalConfig.auth.clientId;
     const redirectUri = encodeURIComponent(window.location.origin);
-    const tenant = "common"; // Use 'common' for multi-tenant
+    //const tenant = "common"; // Use 'common' for multi-tenant
+    const tenant = "organizations"; // Changed due to "AADSTS9002328: Invalid request. Cannot use /common or /consumers on admin-consent."
+
     
     // This URL bypasses MSAL logic and goes straight to the Azure "Master Grant" page
     const adminConsentUrl = `https://login.microsoftonline.com/${tenant}/v2.0/adminconsent?client_id=${clientId}&redirect_uri=${redirectUri}&scope=https://graph.microsoft.com/.default`;
