@@ -28,6 +28,8 @@ function signOut() {
 async function adminOnboarding() {
     const onboardingRequest = {
         // We bypass the Portal's list and ask for exactly what we need here
+        //scopes: ["https://graph.microsoft.com/.default"],
+        //prompt: "consent" // This is the magic line that forces the prompt
         scopes: [
             "https://graph.microsoft.com/User.Read", 
             "https://graph.microsoft.com/Sites.Read.All", // To find the site
