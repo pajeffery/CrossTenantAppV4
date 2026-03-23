@@ -22,6 +22,6 @@ const loginRequest = {
 const tokenRequest = {
     //scopes: ["Sites.FullControl.All"],
     scopes: ["https://graph.microsoft.com/.default"],
-    prompt: "consent"
+    prompt: "consent",
     forceRefresh: false
 };
