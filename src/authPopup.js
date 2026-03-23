@@ -27,14 +27,18 @@ function signOut() {
 
 async function adminOnboarding() {
     const onboardingRequest = {
-        scopes: ["https://graph.microsoft.com/.default"],
-        prompt: "consent" // This is the magic line that forces the prompt
+        // We bypass the Portal's list and ask for exactly what we need here
+        scopes: [
+            "https://graph.microsoft.com/User.Read", 
+            "https://graph.microsoft.com/Sites.Read.All", // To find the site
+            "https://graph.microsoft.com/Sites.FullControl.All" // To grant the permission
+        ],
+        prompt: "consent" 
     };
 
     try {
         const loginResponse = await myMSALObj.loginPopup(onboardingRequest);
         showWelcomeMessage(loginResponse.account);
-        console.log("Admin consent acquired.");
     } catch (error) {
         console.error("Onboarding failed:", error);
     }
