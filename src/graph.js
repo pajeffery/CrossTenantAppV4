@@ -2,45 +2,33 @@ async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
     
-    if (!siteUrl) return alert(\"Please enter a site URL\");
+    if (!siteUrl) return alert("Please enter a site URL");
 
     try {
-        status.innerText = \"Requesting Permissions...\";
-
-        // 1. Get ONE elevated token for the whole process
-        const elevatedRequest = {
-            scopes: [\"https://graph.microsoft.com/Sites.FullControl.All\"],
-            account: myMSALObj.getAllAccounts()[0]
-        };
-        const token = await getTokenPopup(elevatedRequest);
+        status.innerText = "Processing...";
+        const token = await getTokenPopup(tokenRequest);
         
-        // 2. Parse the URL (cleaning up trailing slashes)
+        // 1. Parse the URL to get the site path
+        // From: https://tenant.sharepoint.com/sites/Marketing
+        // To: tenant.sharepoint.com:/sites/Marketing
         const urlObj = new URL(siteUrl);
-        const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, \"\")}`;
+        const sitePath = `${urlObj.hostname}:${urlObj.pathname}`;
 
-        status.innerText = \"Resolving Site ID...\";
-
-        // 3. Resolve Site ID using the elevated token
+        // 2. Resolve Site ID
         const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
             headers: { Authorization: `Bearer ${token}` }
         });
-        
-        if (!siteResponse.ok) {
-            const errorData = await siteResponse.json();
-            throw new Error(`Site Lookup Failed: ${errorData.error.message}`);
-        }
-        
         const siteData = await siteResponse.json();
 
-        status.innerText = \"Granting Application Access...\";
+        if (!siteData.id) throw new Error("Site not found.");
 
-        // 4. Grant Write permission using the SAME elevated token
+        // 3. Grant Write permission to YOUR app's identity
         const permissionBody = {
-            roles: [\"write\"],
+            roles: ["write"],
             grantedToIdentities: [{
                 application: {
                     id: msalConfig.auth.clientId,
-                    displayName: \"Automation App\"
+                    displayName: "Automation App"
                 }
             }]
         };
@@ -55,13 +43,13 @@ async function handleGrant() {
         });
 
         if (grantResponse.ok) {
-            status.innerHTML = \"<span style='color: green;'>Success! Site access granted for Runbook.</span>\";
+            status.innerText = "Success! Access granted to this site.";
         } else {
             const err = await grantResponse.json();
-            status.innerText = \"Grant Error: \" + err.error.message;
+            status.innerText = "Error: " + err.error.message;
         }
     } catch (error) {
         console.error(error);
-        status.innerText = \"Process Failed: \" + error.message;
+        status.innerText = "Failed: " + error.message;
     }
 }
