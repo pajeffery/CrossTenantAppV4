@@ -56,6 +56,32 @@ async function handleGrant() {
             const err = await grantResponse.json();
             status.innerText = "Grant Error: " + err.error.message;
         }
+
+        async function cleanupDelegatedPermissions(token, clientId, tenantId) {
+            try {
+                // This removes the delegated permissions that get applied to the enterprise app in the clients tenant
+                // 1. Find the specific grant for this App in this Tenant
+                // We filter by the clientId (servicePrincipalId)
+                const grantResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${servicePrincipalObjectId}'`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                const grants = await grantResponse.json();
+                
+                // 2. Loop through and delete the delegated grants
+                // This removes the "FullControl" memory from the Enterprise App
+                for (const grant of grants.value) {
+                    await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${grant.id}`, {
+                        method: 'DELETE',
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                }
+                console.log("Delegated permissions revoked successfully.");
+            } catch (error) {
+                console.error("Cleanup failed (non-critical):", error);
+            }
+        }
+        
     } catch (error) {
         status.innerText = "Failed: " + error.message;
     }
