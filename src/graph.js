@@ -11,9 +11,9 @@ async function handleGrant() {
         // We add AppRoleAssignment.ReadWrite.All so we have permission to delete the grant later
         const dynamicRequest = {
             scopes: [
-                "https://graph.microsoft.com/Sites.FullControl.All", 
-                "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"
-            ],
+                "https://graph.microsoft.com/Sites.FullControl.All",
+                "https://graph.microsoft.com/Directory.Read.All",
+                "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"            ],
             account: myMSALObj.getAllAccounts()[0]
         };
 
