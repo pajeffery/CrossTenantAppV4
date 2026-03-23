@@ -5,84 +5,71 @@ async function handleGrant() {
     if (!siteUrl) return alert("Please enter a site URL");
 
     try {
-        status.innerText = "Requesting elevated access...";
+        status.innerText = "Step 1: Requesting Elevated Setup Access...";
 
-        // DYNAMIC REQUEST: This scope is NOT in your app registration.
-        // It is requested only now to perform the administrative grant.
+        // 1. Dynamic Request for FullControl (Not in your Portal)
         const dynamicRequest = {
-            scopes: ["https://graph.microsoft.com/Sites.FullControl.All"],
+            scopes: ["https://graph.microsoft.com/Sites.FullControl.All", "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"],
             account: myMSALObj.getAllAccounts()[0]
         };
 
-        // This triggers a popup for the 'FullControl' scope
         const token = await getTokenPopup(dynamicRequest);
         
-        // Parse the URL to get the site path
-        // From: https://tenant.sharepoint.com/sites/Marketing
-        // To: tenant.sharepoint.com:/sites/Marketing
+        // 2. Resolve Site ID
         const urlObj = new URL(siteUrl);
         const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, "")}`;
-
-        // 1. Resolve Site ID using the elevated token
         const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const siteData = await siteResponse.json();
         if (!siteData.id) throw new Error("Site not found.");
 
-        // 2. Grant 'write' role to the Application ID
-        const permissionBody = {
-            roles: ["write"],
-            grantedToIdentities: [{
-                application: {
-                    id: msalConfig.auth.clientId,
-                    displayName: "Automation App"
-                }
-            }]
-        };
+        status.innerText = "Step 2: Granting Permanent Runbook Access...";
 
+        // 3. Grant 'write' role to the Application ID (Permanent Application Permission)
         const grantResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteData.id}/permissions`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(permissionBody)
+            body: JSON.stringify({
+                roles: ["write"],
+                grantedToIdentities: [{
+                    application: { id: msalConfig.auth.clientId, displayName: "Automation App" }
+                }]
+            })
         });
 
-        if (grantResponse.ok) {
-            status.innerHTML = "<span style='color: green;'>Success! Site access granted.</span>";
-        } else {
-            const err = await grantResponse.json();
-            status.innerText = "Grant Error: " + err.error.message;
+        if (!grantResponse.ok) throw new Error("Failed to grant site access.");
+
+        status.innerText = "Step 3: Cleaning up temporary admin session...";
+
+        // 4. FIND the Service Principal ID for this tenant
+        const spResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${msalConfig.auth.clientId}'`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const spData = await spResponse.json();
+        const spObjectId = spData.value[0].id;
+
+        // 5. DELETE the Delegated Grant (The "Self-Clean" step)
+        // This removes the "FullControl" from the Enterprise App but leaves the Site Permission
+        const grantsResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${spObjectId}'`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const grantsData = await grantsResponse.json();
+
+        for (const grant of grantsData.value) {
+            await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${grant.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
         }
 
-        async function cleanupDelegatedPermissions(token, clientId, tenantId) {
-            try {
-                // This removes the delegated permissions that get applied to the enterprise app in the clients tenant
-                // 1. Find the specific grant for this App in this Tenant
-                // We filter by the clientId (servicePrincipalId)
-                const grantResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${servicePrincipalObjectId}'`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                
-                const grants = await grantResponse.json();
-                
-                // 2. Loop through and delete the delegated grants
-                // This removes the "FullControl" memory from the Enterprise App
-                for (const grant of grants.value) {
-                    await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${grant.id}`, {
-                        method: 'DELETE',
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                }
-                console.log("Delegated permissions revoked successfully.");
-            } catch (error) {
-                console.error("Cleanup failed (non-critical):", error);
-            }
-        }
-        
+        status.innerHTML = "<span style='color: green;'>Success! Site access granted and admin session revoked.</span>";
+
     } catch (error) {
-        status.innerText = "Failed: " + error.message;
+        console.error(error);
+        status.innerText = "Process Failed: " + error.message;
     }
 }
