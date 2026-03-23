@@ -2,43 +2,45 @@ async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
     
-    if (!siteUrl) return alert("Please enter a site URL");
+    if (!siteUrl) return alert(\"Please enter a site URL\");
 
     try {
-        status.innerText = "Processing...";
-        const token = await getTokenPopup(tokenRequest);
-        
-        // 1. Parse the URL to get the site path
-        // From: https://tenant.sharepoint.com/sites/Marketing
-        // To: tenant.sharepoint.com:/sites/Marketing
-        const urlObj = new URL(siteUrl);
-        const sitePath = `${urlObj.hostname}:${urlObj.pathname}`;
+        status.innerText = \"Requesting Permissions...\";
 
-        // 2. Resolve Site ID
+        // 1. Get ONE elevated token for the whole process
+        const elevatedRequest = {
+            scopes: [\"https://graph.microsoft.com/Sites.FullControl.All\"],
+            account: myMSALObj.getAllAccounts()[0]
+        };
+        const token = await getTokenPopup(elevatedRequest);
+        
+        // 2. Parse the URL (cleaning up trailing slashes)
+        const urlObj = new URL(siteUrl);
+        const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, \"\")}`;
+
+        status.innerText = \"Resolving Site ID...\";
+
+        // 3. Resolve Site ID using the elevated token
         const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
             headers: { Authorization: `Bearer ${token}` }
         });
+        
+        if (!siteResponse.ok) {
+            const errorData = await siteResponse.json();
+            throw new Error(`Site Lookup Failed: ${errorData.error.message}`);
+        }
+        
         const siteData = await siteResponse.json();
 
-        if (!siteData.id) throw new Error("Site not found.");
+        status.innerText = \"Granting Application Access...\";
 
-        status.innerText = "Requesting elevated permissions...";
-
-        const grantTokenRequest = {
-            scopes: ["https://graph.microsoft.com/Sites.FullControl.All"],
-            account: myMSALObj.getAllAccounts()[0]
-        };
-
-        // This ensures the token actually has "Write/FullControl" ability
-        const elevatedToken = await getTokenPopup(grantTokenRequest);
-
-        // 3. Grant Write permission to YOUR app's identity       
+        // 4. Grant Write permission using the SAME elevated token
         const permissionBody = {
-            roles: ["write"],
+            roles: [\"write\"],
             grantedToIdentities: [{
                 application: {
                     id: msalConfig.auth.clientId,
-                    displayName: "Automation App"
+                    displayName: \"Automation App\"
                 }
             }]
         };
@@ -46,20 +48,20 @@ async function handleGrant() {
         const grantResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteData.id}/permissions`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${elevatedToken}`, // Use the elevated token here
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(permissionBody)
         });
 
         if (grantResponse.ok) {
-            status.innerText = "Success! Access granted to this site.";
+            status.innerHTML = \"<span style='color: green;'>Success! Site access granted for Runbook.</span>\";
         } else {
             const err = await grantResponse.json();
-            status.innerText = "Error: " + err.error.message;
+            status.innerText = \"Grant Error: \" + err.error.message;
         }
     } catch (error) {
         console.error(error);
-        status.innerText = "Failed: " + error.message;
+        status.innerText = \"Process Failed: \" + error.message;
     }
 }
