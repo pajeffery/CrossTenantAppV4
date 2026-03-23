@@ -22,7 +22,17 @@ async function handleGrant() {
 
         if (!siteData.id) throw new Error("Site not found.");
 
-        // 3. Grant Write permission to YOUR app's identity
+        status.innerText = "Requesting elevated permissions...";
+
+        const grantTokenRequest = {
+            scopes: ["https://graph.microsoft.com/Sites.FullControl.All"],
+            account: myMSALObj.getAllAccounts()[0]
+        };
+
+        // This ensures the token actually has "Write/FullControl" ability
+        const elevatedToken = await getTokenPopup(grantTokenRequest);
+
+        // 3. Grant Write permission to YOUR app's identity       
         const permissionBody = {
             roles: ["write"],
             grantedToIdentities: [{
@@ -36,7 +46,7 @@ async function handleGrant() {
         const grantResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteData.id}/permissions`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${elevatedToken}`, // Use the elevated token here
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(permissionBody)
