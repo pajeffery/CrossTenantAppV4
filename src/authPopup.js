@@ -25,6 +25,21 @@ function signOut() {
     myMSALObj.logoutPopup(logoutRequest);
 }
 
+async function adminOnboarding() {
+    const onboardingRequest = {
+        scopes: ["https://graph.microsoft.com/.default"],
+        prompt: "consent" // This is the magic line that forces the prompt
+    };
+
+    try {
+        const loginResponse = await myMSALObj.loginPopup(onboardingRequest);
+        showWelcomeMessage(loginResponse.account);
+        console.log("Admin consent acquired.");
+    } catch (error) {
+        console.error("Onboarding failed:", error);
+    }
+}
+
 function redirectForAdminConsent() {
     const clientId = msalConfig.auth.clientId;
     const redirectUri = encodeURIComponent(window.location.origin);
