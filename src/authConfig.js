@@ -20,6 +20,8 @@ const loginRequest = {
 
 // The /.default will pull whatever permissions are configured in the app registration
 const tokenRequest = {
+    //scopes: ["Sites.FullControl.All"],
     scopes: ["https://graph.microsoft.com/.default"],
+    prompt: "consent"
     forceRefresh: false
 };
