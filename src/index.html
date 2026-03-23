@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cross-Tenant Site Manager</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
+</head>
+<body>
+    <nav>
+        <button id="SignIn" onclick="signIn()">Sign In (Admin)</button>
+        <button id="SignOut" class="d-none" onclick="signOut()">Sign Out</button>
+    </nav>
+
+    <main id="main-content" class="d-none">
+        <h2>Client Tenant Setup</h2>
+        <p>Welcome, <span id="username"></span></p>
+        
+        <div class="card">
+            <h3>Step 1: Identity Established</h3>
+            <p>By signing in, the Service Principal is now present in your tenant for the Runbook to use.</p>
+        </div>
+
+        <div class="card">
+            <h3>Step 2: Grant Site-Specific Access</h3>
+            <label for="siteUrl">SharePoint Site URL:</label>
+            <input type="text" id="siteUrl" placeholder="https://tenant.sharepoint.com/sites/TargetSite">
+            <button id="grantButton" onclick="handleGrant()">Grant Write Access</button>
+            <p id="statusMessage"></p>
+        </div>
+    </main>
+
+    <script src="./authConfig.js"></script>
+    <script src="./ui.js"></script>
+    <script src="./authPopup.js"></script>
+    <script src="./graph.js"></script>
+</body>
+</html>
