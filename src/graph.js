@@ -8,8 +8,12 @@ async function handleGrant() {
         status.innerText = "Step 1: Requesting Elevated Setup Access...";
 
         // 1. Dynamic Request for FullControl (Not in your Portal)
+        // We add AppRoleAssignment.ReadWrite.All so we have permission to delete the grant later
         const dynamicRequest = {
-            scopes: ["https://graph.microsoft.com/Sites.FullControl.All", "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"],
+            scopes: [
+                "https://graph.microsoft.com/Sites.FullControl.All", 
+                "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"
+            ],
             account: myMSALObj.getAllAccounts()[0]
         };
 
@@ -22,7 +26,8 @@ async function handleGrant() {
             headers: { Authorization: `Bearer ${token}` }
         });
         const siteData = await siteResponse.json();
-        if (!siteData.id) throw new Error("Site not found.");
+        
+        if (!siteData.id) throw new Error("Site not found. Check the URL and try again.");
 
         status.innerText = "Step 2: Granting Permanent Runbook Access...";
 
@@ -41,7 +46,10 @@ async function handleGrant() {
             })
         });
 
-        if (!grantResponse.ok) throw new Error("Failed to grant site access.");
+        if (!grantResponse.ok) {
+            const errorBody = await grantResponse.json();
+            throw new Error(`Failed to grant site access: ${errorBody.error.message}`);
+        }
 
         status.innerText = "Step 3: Cleaning up temporary admin session...";
 
@@ -50,18 +58,17 @@ async function handleGrant() {
             headers: { Authorization: `Bearer ${token}` }
         });
         const spData = await spResponse.json();
+        
+        if (!spData.value || spData.value.length === 0) throw new Error("Service Principal not found in this tenant.");
         const spObjectId = spData.value[0].id;
 
-        status.innerText = "Step 3: Cleaning up temporary admin session...";
-
-        // 5. GET the Delegated Grants
+        // 5. GET and DELETE the Delegated Grants (The Self-Clean)
         const grantsResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${spObjectId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         
         const grantsData = await grantsResponse.json();
         
-        // CHECK: Ensure 'value' exists and is an array before looping
         if (grantsData && Array.isArray(grantsData.value)) {
             for (const grant of grantsData.value) {
                 try {
@@ -71,15 +78,17 @@ async function handleGrant() {
                     });
                     console.log(`Deleted grant: ${grant.id}`);
                 } catch (innerError) {
-                    // If the token expires mid-loop because we deleted the permission, 
-                    // that's actually a "success" in terms of revoking access!
+                    // Gracefully handle if the token is revoked mid-loop
                     console.warn("Grant deletion interrupted - session likely already revoked.");
                     break; 
                 }
             }
-        } else {
-            console.log("No delegated grants found to clean up.");
         }
         
-        status.innerHTML = "<span style='color: green;'>Success! Site access granted and admin session revoked.</span>";
-}
+        status.innerHTML = "<span style='color: green; font-weight: bold;'>Success! Site access granted and admin session revoked.</span>";
+
+    } catch (error) {
+        console.error("HandleGrant Error:", error);
+        status.innerText = "Process Failed: " + error.message;
+    }
+} // <--- Added missing closing brace for function
