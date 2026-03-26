@@ -1,15 +1,24 @@
-/* Updated /src/ui.js */
+/* Updated /src/ui.js - Restores UI transitions */
 function showWelcomeMessage(account) {
-    // Check for the new button ID instead of "SignIn"
-    const loginButton = document.getElementById("AdminOnboardFull");
-    if (loginButton) {
-        loginButton.classList.add("d-none");
+    console.log("Authenticated as:", account.username);
+    
+    // Hide both the Sign In and Onboarding buttons
+    const buttonsToHide = ["SignIn", "AdminOnboardFull"];
+    buttonsToHide.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.add("d-none");
+    });
+
+    // Reveal the main content area (where the site URL input is)
+    const mainContent = document.getElementById("main-content");
+    if (mainContent) {
+        mainContent.classList.remove("d-none");
     }
 
-    // This line reveals the section containing your input box
-    document.getElementById("main-content").classList.remove("d-none");
+    // Show the Sign Out button and display the username
+    const signOutBtn = document.getElementById("SignOut");
+    if (signOutBtn) signOutBtn.classList.remove("d-none");
     
-    // Update the UI with the user's name
-    document.getElementById("SignOut").classList.remove("d-none");
-    document.getElementById("username").innerText = account.username;
+    const usernameSpan = document.getElementById("username");
+    if (usernameSpan) usernameSpan.innerText = account.username;
 }
