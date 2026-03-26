@@ -8,29 +8,37 @@
 </head>
 <body>
     <nav>
-        <!--
-        <button id="SignIn" onclick="signIn()">Sign In (Admin)</button>
-        <button id="AdminSetup" onclick="adminOnboarding()">Onboard New Tenant (Admin)</button>
-        -->
-        <button id="AdminOnboardFull" onclick="redirectForAdminConsent()">Tenant-Wide Onboarding (Full Redirect)</button>
-        <button id="SignOut" class="d-none" onclick="signOut()">Sign Out</button>
+        <div class="brand">
+            <span style="color: white; font-weight: bold; font-size: 1.2rem;">Information Exp</span>
+            <span style="color: #cbd5e0; margin-left: 10px;">| Governance Portal</span>
+        </div>
+        <div id="nav-actions">
+            <button id="AdminOnboardFull" onclick="redirectForAdminConsent()">Onboard New Tenant - Demo</button>
+            <button id="SignOut" class="d-none" onclick="signOut()">Sign Out</button>
+        </div>
     </nav>
 
-    <main id="main-content" class="d-none">
-        <h2>Client Tenant Setup</h2>
-        <p>Welcome, <span id="username"></span></p>
-        
-        <div class="card">
-            <h3>Step 1: Identity Established</h3>
-            <p>By signing in, the Service Principal is now present in your tenant for the Runbook to use.</p>
-        </div>
+    <main id="main-content" class="container d-none" style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
+        <header>
+            <h1 style="color: var(--primary-blue);">Cross-Tenant Site Authorization</h1>
+            <p>Securely grant specific SharePoint permissions to the Information Experience automation engine.</p>
+        </header>
 
         <div class="card">
-            <h3>Step 2: Grant Site-Specific Access</h3>
-            <label for="siteUrl">SharePoint Site URL:</label>
-            <input type="text" id="siteUrl" placeholder="https://tenant.sharepoint.com/sites/TargetSite">
-            <button id="grantButton" onclick="handleGrant()">Grant Write Access</button>
-            <p id="statusMessage"></p>
+            <h3>Active Session: <span id="username" style="color: var(--accent-blue);"></span></h3>
+            <p style="font-size: 0.9rem; color: #666;">You are currently authenticated as a Tenant Administrator.</p>
+        </div>
+        
+        <div class="card">
+            <h3>Target Site Configuration</h3>
+            <p>Enter the full URL of the SharePoint site where you wish to enable automated governance services.</p>
+            
+            <label for="siteUrl" style="font-weight: bold;">SharePoint Site URL</label>
+            <input type="text" id="siteUrl" placeholder="https://yourtenant.sharepoint.com/sites/Marketing">
+            
+            <button id="grantButton" style="width: 100%; margin-top: 10px;" onclick="handleGrant()">Authorize Site Access</button>
+            
+            <div id="statusMessage" style="margin-top: 20px; padding: 10px; border-radius: 4px;"></div>
         </div>
     </main>
 
