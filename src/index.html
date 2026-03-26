@@ -10,35 +10,55 @@
 <body>
     <nav>
         <div class="brand-container">
-            <span class="brand-name">Information Exp</span>
+            <span class="brand-name">Information Experience</span>
             <span class="app-title">Governance Portal</span>
         </div>
         <div id="nav-actions">
-            <button id="SignIn" onclick="signIn()">Sign In</button>
-            <button id="AdminOnboardFull" onclick="redirectForAdminConsent()" style="margin-left:10px; opacity:0.8; font-size:0.8rem; background:transparent; border:1px solid white;">Onboard Tenant (Setup)</button>
-            <button id="SignOut" class="d-none" onclick="signOut()">Sign Out</button>
+            <button id="SignIn" class="btn-outline" onclick="signIn()">Sign In</button>
+            <button id="SignOut" class="btn-outline d-none" onclick="signOut()">Sign Out</button>
         </div>
     </nav>
 
-    <main id="main-content" class="container d-none">
-        <header>
-            <h1>Cross-Tenant Site Authorization</h1>
-            <p>Establish a service link between your tenant and the Information Experience engine.</p>
+    <div class="container">
+        <header class="page-header">
+            <h1>Service Setup Catalog</h1>
+            <p>Select and configure the automated services for your Microsoft 365 environment.</p>
         </header>
-        
-        <div class="card">
-            <h3>Active Session</h3>
-            <p>Authenticated as: <span id="username" style="font-weight: bold; color: var(--accent-blue);"></span></p>
-        </div>
 
-        <div class="card">
-            <h3>Target Site Configuration</h3>
-            <label for="siteUrl">SharePoint Site URL</label>
-            <input type="text" id="siteUrl" placeholder="https://yourtenant.sharepoint.com/sites/TargetSite">
-            <button id="grantButton" style="width: 100%;" onclick="handleGrant()">Authorize Site Access</button>
-            <div id="statusMessage" style="margin-top:15px;"></div>
+        <section class="service-card" id="success-service">
+            <div class="service-header">
+                <div class="service-icon">SS</div>
+                <div>
+                    <h2>Success Service</h2>
+                    <p class="service-description">
+                        This service automates governance and lifecycle management for SharePoint sites. 
+                        [Additional description can be added here later].
+                    </p>
+                </div>
+            </div>
+
+            <div id="step-1-onboarding" class="setup-step">
+                <div class="step-label">Step 1</div>
+                <h3>Tenant Onboarding</h3>
+                <p>Authorize the Success Service to interact with your tenant's metadata.</p>
+                <button id="AdminOnboardFull" class="btn-primary" onclick="redirectForAdminConsent()">Grant Admin Consent</button>
+            </div>
+
+            <div id="step-2-config" class="setup-step d-none border-top">
+                <div class="step-label">Step 2</div>
+                <h3>Site-Specific Authorization</h3>
+                <p>Provide the URL of the SharePoint site you wish to manage. The Success Service will establish a secure link specifically for this resource.</p>
+                
+                <div class="input-group">
+                    <label for="siteUrl">SharePoint Site URL</label>
+                    <input type="text" id="siteUrl" placeholder="https://tenant.sharepoint.com/sites/Example">
+                    <button id="grantButton" class="btn-primary" onclick="handleGrant()">Authorize Site</button>
+                </div>
+                <div id="statusMessage"></div>
+            </div>
+        </section>
+        
         </div>
-    </main>
 
     <script src="./authConfig.js"></script>
     <script src="./ui.js"></script>
