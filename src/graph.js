@@ -41,7 +41,7 @@ async function handleGrant() {
             body: JSON.stringify({
                 roles: ["write"],
                 grantedToIdentities: [{
-                    application: { id: msalConfig.auth.clientId, displayName: "Automation App" }
+                    application: { id: msalConfig.auth.clientId, displayName: "Information Experience Governance" }
                 }]
             })
         });
