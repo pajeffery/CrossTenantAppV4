@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Governance Portal | Information Exp</title>
+    <title>Governance Portal | Information Experience</title>
     <link rel="stylesheet" href="./styles.css">
     <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
 </head>
 <body>
     <nav>
         <div class="brand-container">
-            <span class="brand-name">Information Experience</span>
+            <span class="brand-name">Information Exp</span>
             <span class="app-title">Governance Portal</span>
         </div>
         <div id="nav-actions">
-            <button id="AdminOnboardFull" onclick="redirectForAdminConsent()">Onboard New Tenant</button>
+            <button id="SignIn" onclick="signIn()">Sign In</button>
+            <button id="AdminOnboardFull" onclick="redirectForAdminConsent()" style="margin-left:10px; opacity:0.8; font-size:0.8rem; background:transparent; border:1px solid white;">Onboard Tenant (Setup)</button>
             <button id="SignOut" class="d-none" onclick="signOut()">Sign Out</button>
         </div>
     </nav>
@@ -22,27 +23,20 @@
     <main id="main-content" class="container d-none">
         <header>
             <h1>Cross-Tenant Site Authorization</h1>
-            <p>Securely establish a service link between your Microsoft 365 tenant and the Information Experience automation engine.</p>
+            <p>Establish a service link between your tenant and the Information Experience engine.</p>
         </header>
         
         <div class="card">
             <h3>Active Session</h3>
             <p>Authenticated as: <span id="username" style="font-weight: bold; color: var(--accent-blue);"></span></p>
-            <p style="font-size: 0.85rem; color: #666;">
-                The Service Principal is now present in your tenant. You can now proceed to grant site-specific permissions.
-            </p>
         </div>
 
         <div class="card">
             <h3>Target Site Configuration</h3>
-            <p>Enter the full URL of the SharePoint site where you wish to enable governance services.</p>
-            
             <label for="siteUrl">SharePoint Site URL</label>
             <input type="text" id="siteUrl" placeholder="https://yourtenant.sharepoint.com/sites/TargetSite">
-            
             <button id="grantButton" style="width: 100%;" onclick="handleGrant()">Authorize Site Access</button>
-            
-            <div id="statusMessage"></div>
+            <div id="statusMessage" style="margin-top:15px;"></div>
         </div>
     </main>
 
