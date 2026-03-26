@@ -1,56 +1,148 @@
+/* Information Experience Branding - styles.css
+   Target Folder: /src/styles.css
+*/
+
 :root {
-    --primary-blue: #002d5c; /* Information Experience Navy */
-    --accent-blue: #0056b3;
-    --light-gray: #f8f9fa;
-    --text-dark: #333333;
-    --success-green: #28a745;
+    --primary-navy: #002d5c;    /* Brand Primary */
+    --accent-blue: #0056b3;     /* Action Blue */
+    --background-gray: #f4f7f9; /* Soft Page Background */
+    --border-color: #d1d9e0;    /* Professional Borders */
+    --text-main: #24292e;       /* High Contrast Text */
+    --success-green: #28a745;   /* Success Indicators */
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--light-gray);
-    color: var(--text-dark);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-gray);
+    color: var(--text-main);
     margin: 0;
+    line-height: 1.6;
 }
 
+/* Navigation Bar */
 nav {
-    background-color: var(--primary-blue);
-    padding: 1rem 2rem;
+    background-color: var(--primary-navy);
+    padding: 0.8rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.card {
-    background: white;
-    border-radius: 8px;
-    padding: 24px;
-    margin: 20px 0;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    border: 1px solid #e1e4e8;
-}
-
-button {
-    background-color: var(--accent-blue);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background 0.3s ease;
 }
 
-button:hover {
-    background-color: var(--primary-blue);
+nav .brand-container {
+    display: flex;
+    align-items: center;
+}
+
+nav .brand-name {
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: 0.5px;
+}
+
+nav .app-title {
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    color: #cbd5e0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+/* Main Content Area */
+.container {
+    max-width: 850px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+h1, h2, h3 {
+    color: var(--primary-navy);
+    margin-top: 0;
+}
+
+/* Modern Cards */
+.card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+}
+
+/* Forms and Inputs */
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--primary-navy);
 }
 
 input[type="text"] {
     width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border: 2px solid #e1e4e8;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+/* Buttons */
+button {
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+button:hover {
+    background-color: var(--primary-navy);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+#SignOut {
+    background-color: transparent;
+    border: 1px solid rgba(255,255,255,0.5);
+    font-size: 0.85rem;
+}
+
+#SignOut:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+
+/* Status Messages */
+#statusMessage {
+    margin-top: 15px;
+    font-weight: 500;
     padding: 12px;
-    margin: 10px 0;
-    border: 1px solid #ccc;
     border-radius: 4px;
-    box-sizing: border-box;
+}
+
+.d-none {
+    display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    nav {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
 }
