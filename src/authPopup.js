@@ -2,20 +2,13 @@
 
 const myMSALObj = new msal.PublicClientApplication(msalConfig);
 
-/**
- * Handle the redirect after Admin Consent or Login
- */
 myMSALObj.handleRedirectPromise()
     .then((response) => {
         const currentAccounts = myMSALObj.getAllAccounts();
-        
-        // Check 1: Are we officially signed in?
         if (currentAccounts.length > 0) {
             showWelcomeMessage(currentAccounts[0]);
         } 
         
-        // Check 2: Did we just return from an Admin Consent redirect?
-        // We look for the "admin_consent" parameter Microsoft adds to the URL
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has("admin_consent")) {
             console.log("Admin Consent detected in URL. Unlocking Step 2.");
@@ -26,20 +19,16 @@ myMSALObj.handleRedirectPromise()
         console.error("Auth Error:", error);
     });
 
-/**
- * Specifically reveals Step 2 (The Success Service site input)
- */
 function unlockStep2() {
     const step2 = document.getElementById("step-2-config");
     if (step2) {
         step2.classList.remove("d-none");
     }
 
-    // Update Step 1 button to show it's done
     const onboardBtn = document.getElementById("AdminOnboardFull");
     if (onboardBtn) {
         onboardBtn.innerText = "Tenant Onboarded ✓";
-        onboardBtn.classList.add("btn-success"); // Assuming you have a success style
+        onboardBtn.classList.add("btn-success"); 
         onboardBtn.disabled = true;
     }
 }
@@ -48,8 +37,10 @@ async function signIn() {
     try {
         const loginResponse = await myMSALObj.loginPopup(loginRequest);
         showWelcomeMessage(loginResponse.account);
+        return loginResponse.account; // Return the account for other functions to use
     } catch (error) {
         console.error("Sign-in failed:", error);
+        throw error;
     }
 }
 
@@ -65,49 +56,45 @@ function redirectForAdminConsent() {
     const clientId = msalConfig.auth.clientId;
     const redirectUri = encodeURIComponent(window.location.origin);
     const tenant = "organizations"; 
-
-    // This URL sends the user to Microsoft to authorize the app for the whole tenant
     const adminConsentUrl = `https://login.microsoftonline.com/${tenant}/v2.0/adminconsent?client_id=${clientId}&redirect_uri=${redirectUri}&scope=https://graph.microsoft.com/.default`;
-    
     window.location.assign(adminConsentUrl);
 }
 
+// THE FIX IS IN THIS FUNCTION
 async function getTokenPopup(request) {
-    // Ensure we have the account
-    const currentAccount = myMSALObj.getAllAccounts()[0];
+    let currentAccount = myMSALObj.getAllAccounts()[0];
+    
+    // If not signed in, force a sign in first before trying to get the token
     if (!currentAccount) {
-        console.warn("No account found, initiating login...");
-        await signIn();
-        request.account = myMSALObj.getAllAccounts()[0];
-    } else {
-        request.account = currentAccount;
+        console.warn("No account found, forcing login...");
+        currentAccount = await signIn();
     }
+    
+    request.account = currentAccount;
 
     try {
-        // 1. Try getting the token silently
+        // Try getting token silently
+        console.log("Attempting silent token acquisition...");
         const response = await myMSALObj.acquireTokenSilent(request);
         return response.accessToken;
     } catch (error) {
-        console.warn("Silent token failed, checking if consent is needed...");
+        console.warn("Silent token failed. Initiating interactive consent popup...", error.errorCode);
         
-        // 2. Check if the error is "Consent Required" or "Interaction Required"
-        if (error.errorCode === "consent_required" || 
-            error.errorCode === "interaction_required" || 
-            error.errorMessage.includes("AADSTS65001")) {
-            
-            console.log("Consent required. Launching interactive prompt...");
-            
-            // Force the prompt to ensure the user sees the 'Accept' button
-            const interactiveRequest = {
-                ...request,
-                prompt: "consent" 
-            };
-            
-            const response = await myMSALObj.acquireTokenPopup(interactiveRequest);
-            return response.accessToken;
+        // If silent fails (usually because of consent_required), force the popup
+        // The key here is passing 'prompt: "consent"' to ensure the Azure screen shows up
+        const interactiveRequest = {
+            scopes: request.scopes,
+            account: currentAccount,
+            prompt: "consent", 
+            loginHint: currentAccount.username // Crucial for routing them to the right admin login
+        };
+        
+        try {
+            const popupResponse = await myMSALObj.acquireTokenPopup(interactiveRequest);
+            return popupResponse.accessToken;
+        } catch (popupError) {
+            console.error("Interactive consent failed. User may have closed the window.", popupError);
+            throw popupError;
         }
-        
-        // If it's some other error, throw it
-        throw error;
     }
 }
