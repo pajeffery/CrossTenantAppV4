@@ -73,24 +73,6 @@ function redirectForAdminConsent() {
 }
 
 async function getTokenPopup(request) {
-    const currentAccounts = myMSALObj.getAllAccounts()[0];
-    if (!currentAccounts) {
-        // If the box is visible but they aren't signed in, we need to sign them in now
-        await signIn();
-    }
-    
-    request.account = myMSALObj.getAllAccounts()[0];
-
-    try {
-        const response = await myMSALObj.acquireTokenSilent(request);
-        return response.accessToken;
-    } catch (error) {
-        const response = await myMSALObj.acquireTokenPopup(request);
-        return response.accessToken;
-    }
-}
-
-async function getTokenPopup(request) {
     // Ensure we have the account
     const currentAccount = myMSALObj.getAllAccounts()[0];
     if (!currentAccount) {
