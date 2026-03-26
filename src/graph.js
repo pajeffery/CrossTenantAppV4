@@ -7,20 +7,34 @@ async function handleGrant() {
     if (!siteUrl) return alert("Please enter a site URL");
 
     try {
-        status.innerText = "Step 1: Requesting Elevated Setup Access...";
+        status.innerText = "Authenticating and checking permissions...";
 
-        // Define the scopes ONLY. Do not assign the account here.
-        // authPopup.js will handle assigning the account.
+        // 1. Get the account at the MOMENT of the click
+        const accounts = myMSALObj.getAllAccounts();
+        if (accounts.length === 0) {
+            // If for some reason the session lost the account, force a sign-in
+            status.innerText = "No active session. Please sign in again.";
+            await signIn(); 
+        }
+
         const dynamicRequest = {
             scopes: [
                 "https://graph.microsoft.com/Sites.FullControl.All",
                 "https://graph.microsoft.com/Directory.Read.All",
                 "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"
-            ]
+            ],
+            account: myMSALObj.getAllAccounts()[0] // Get it freshly here
         };
 
-        // This will now properly trigger the consent popup if needed
+        // 2. Await the token properly
+        // This will now block the rest of the script until the popup is finished.
         const token = await getTokenPopup(dynamicRequest);
+        
+        if (!token) {
+            throw new Error("Failed to acquire access token.");
+        }
+
+        status.innerText = "Step 1: Resolving Site ID...";
         
         // ... (The rest of your graph.js code remains exactly the same starting from Step 2)
         // 2. Resolve Site ID
