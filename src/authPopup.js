@@ -89,3 +89,43 @@ async function getTokenPopup(request) {
         return response.accessToken;
     }
 }
+
+async function getTokenPopup(request) {
+    // Ensure we have the account
+    const currentAccount = myMSALObj.getAllAccounts()[0];
+    if (!currentAccount) {
+        console.warn("No account found, initiating login...");
+        await signIn();
+        request.account = myMSALObj.getAllAccounts()[0];
+    } else {
+        request.account = currentAccount;
+    }
+
+    try {
+        // 1. Try getting the token silently
+        const response = await myMSALObj.acquireTokenSilent(request);
+        return response.accessToken;
+    } catch (error) {
+        console.warn("Silent token failed, checking if consent is needed...");
+        
+        // 2. Check if the error is "Consent Required" or "Interaction Required"
+        if (error.errorCode === "consent_required" || 
+            error.errorCode === "interaction_required" || 
+            error.errorMessage.includes("AADSTS65001")) {
+            
+            console.log("Consent required. Launching interactive prompt...");
+            
+            // Force the prompt to ensure the user sees the 'Accept' button
+            const interactiveRequest = {
+                ...request,
+                prompt: "consent" 
+            };
+            
+            const response = await myMSALObj.acquireTokenPopup(interactiveRequest);
+            return response.accessToken;
+        }
+        
+        // If it's some other error, throw it
+        throw error;
+    }
+}
