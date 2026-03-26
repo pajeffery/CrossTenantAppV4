@@ -1,24 +1,24 @@
-/* Updated /src/ui.js - Restores UI transitions */
 function showWelcomeMessage(account) {
-    console.log("Authenticated as:", account.username);
-    
-    // Hide both the Sign In and Onboarding buttons
-    const buttonsToHide = ["SignIn", "AdminOnboardFull"];
-    buttonsToHide.forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.classList.add("d-none");
-    });
+    // 1. Manage Navigation buttons
+    document.getElementById("SignIn").classList.add("d-none");
+    document.getElementById("SignOut").classList.remove("d-none");
 
-    // Reveal the main content area (where the site URL input is)
-    const mainContent = document.getElementById("main-content");
-    if (mainContent) {
-        mainContent.classList.remove("d-none");
+    // 2. Manage the Service Card Steps
+    // We show Step 2 (Site Input) only after the user is authenticated
+    const step2 = document.getElementById("step-2-config");
+    if (step2) {
+        step2.classList.remove("d-none");
     }
 
-    // Show the Sign Out button and display the username
-    const signOutBtn = document.getElementById("SignOut");
-    if (signOutBtn) signOutBtn.classList.remove("d-none");
-    
-    const usernameSpan = document.getElementById("username");
-    if (usernameSpan) usernameSpan.innerText = account.username;
+    // Optional: Gray out or visually complete Step 1
+    const onboardBtn = document.getElementById("AdminOnboardFull");
+    if (onboardBtn) {
+        onboardBtn.innerText = "Tenant Onboarded ✓";
+        onboardBtn.style.opacity = "0.6";
+        onboardBtn.disabled = true;
+    }
+
+    // 3. Update the username in the UI if you have a placeholder for it
+    const userField = document.getElementById("username");
+    if (userField) userField.innerText = account.username;
 }
