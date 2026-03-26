@@ -1,3 +1,5 @@
+/* /src/graph.js */
+
 async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
@@ -7,18 +9,20 @@ async function handleGrant() {
     try {
         status.innerText = "Step 1: Requesting Elevated Setup Access...";
 
-        // 1. Dynamic Request for FullControl (Not in your Portal)
-        // We add AppRoleAssignment.ReadWrite.All so we have permission to delete the grant later
+        // Define the scopes ONLY. Do not assign the account here.
+        // authPopup.js will handle assigning the account.
         const dynamicRequest = {
             scopes: [
                 "https://graph.microsoft.com/Sites.FullControl.All",
                 "https://graph.microsoft.com/Directory.Read.All",
-                "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"            ],
-            account: myMSALObj.getAllAccounts()[0]
+                "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"
+            ]
         };
 
+        // This will now properly trigger the consent popup if needed
         const token = await getTokenPopup(dynamicRequest);
         
+        // ... (The rest of your graph.js code remains exactly the same starting from Step 2)
         // 2. Resolve Site ID
         const urlObj = new URL(siteUrl);
         const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, "")}`;
