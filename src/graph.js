@@ -9,50 +9,47 @@ async function handleGrant() {
     try {
         status.innerText = "Opening Authorization Window...";
 
-        // Define exactly what we need for this specific action
+        // 1. Define Request 
+        // Note: Using the short-form names is often more reliable in MSAL 2.x 
+        // when the authority is already set to graph.microsoft.com
         const grantRequest = {
             scopes: [
-                "https://graph.microsoft.com/Sites.FullControl.All",
-                "https://graph.microsoft.com/Directory.Read.All",
-                "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"
+                "openid", 
+                "profile", 
+                "Offline_Access",
+                "Sites.FullControl.All",
+                "Directory.Read.All",
+                "DelegatedPermissionGrant.ReadWrite.All"
             ],
-            prompt: "consent" // Uncomment this to ALWAYS force the consent screen
+            prompt: "consent" 
         };
 
-        // Simplified: Go straight to a popup. 
-        // This ignores the background cache and just asks the user directly.
+        // 2. Acquire Token
         const response = await myMSALObj.loginPopup(grantRequest);
-        
-        // The token is now in response.accessToken
         const token = response.accessToken;
 
-        status.innerText = "Step 1: Resolving Site ID...";
-        
-        // Proceed with your Graph API calls using 'token'
-        // e.g., await resolveSiteId(siteUrl, token);
+        if (!token) throw new Error("Could not acquire an access token.");
 
-    } catch (error) {
-        console.error("Authorization failed:", error);
-        status.innerText = "Error: " + error.message;
-    }
-}
         status.innerText = "Step 1: Resolving Site ID...";
         
-        // ... (The rest of your graph.js code remains exactly the same starting from Step 2)
-        // 2. Resolve Site ID
+        // 3. Resolve Site ID
         const urlObj = new URL(siteUrl);
         const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, "")}`;
+        
         const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
             headers: { Authorization: `Bearer ${token}` }
         });
-        const siteData = await siteResponse.json();
         
-        if (!siteData.id) throw new Error("Site not found. Check the URL and try again.");
+        const siteData = await siteResponse.json();
+        if (!siteData.id) {
+            console.error("Site Lookup Data:", siteData);
+            throw new Error("Site not found. Ensure the URL is correct and you have access.");
+        }
 
         status.innerText = "Step 2: Granting Permanent Runbook Access...";
 
-        // 3. Grant 'write' role to the Application ID (Permanent Application Permission)
-        const grantResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteData.id}/permissions`, {
+        // 4. Grant 'write' role to the Application (Application Permission)
+        const permResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteData.id}/permissions`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -61,28 +58,31 @@ async function handleGrant() {
             body: JSON.stringify({
                 roles: ["write"],
                 grantedToIdentities: [{
-                    application: { id: msalConfig.auth.clientId, displayName: "Information Experience Governance" }
+                    application: { 
+                        id: msalConfig.auth.clientId, 
+                        displayName: "Information Experience Governance" 
+                    }
                 }]
             })
         });
 
-        if (!grantResponse.ok) {
-            const errorBody = await grantResponse.json();
-            throw new Error(`Failed to grant site access: ${errorBody.error.message}`);
+        if (!permResponse.ok) {
+            const errorBody = await permResponse.json();
+            throw new Error(`Permission Grant Failed: ${errorBody.error.message}`);
         }
 
-        status.innerText = "Step 3: Cleaning up temporary admin session...";
+        status.innerText = "Step 3: Revoking temporary admin session...";
 
-        // 4. FIND the Service Principal ID for this tenant
+        // 5. FIND the Service Principal ID
         const spResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${msalConfig.auth.clientId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const spData = await spResponse.json();
         
-        if (!spData.value || spData.value.length === 0) throw new Error("Service Principal not found in this tenant.");
+        if (!spData.value || spData.value.length === 0) throw new Error("Service Principal not found.");
         const spObjectId = spData.value[0].id;
 
-        // 5. GET and DELETE the Delegated Grants (The Self-Clean)
+        // 6. DELETE the Delegated Grants (Self-Cleanup)
         const grantsResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${spObjectId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
@@ -96,19 +96,17 @@ async function handleGrant() {
                         method: 'DELETE',
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    console.log(`Deleted grant: ${grant.id}`);
                 } catch (innerError) {
-                    // Gracefully handle if the token is revoked mid-loop
-                    console.warn("Grant deletion interrupted - session likely already revoked.");
+                    console.warn("Cleanup interrupted - this is normal if the token was revoked.");
                     break; 
                 }
             }
         }
         
-        status.innerHTML = "<span style='color: green; font-weight: bold;'>Success! Site access granted and admin session revoked.</span>";
+        status.innerHTML = "<span style='color: #28a745; font-weight: bold;'>Success! Site access granted and session closed.</span>";
 
     } catch (error) {
         console.error("HandleGrant Error:", error);
         status.innerText = "Process Failed: " + error.message;
     }
-} // <--- Added missing closing brace for function
+}
