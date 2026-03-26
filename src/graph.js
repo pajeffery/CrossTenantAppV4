@@ -16,7 +16,7 @@ async function handleGrant() {
                 "https://graph.microsoft.com/Directory.Read.All",
                 "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"
             ],
-            // prompt: "consent" // Uncomment this to ALWAYS force the consent screen
+            prompt: "consent" // Uncomment this to ALWAYS force the consent screen
         };
 
         // Simplified: Go straight to a popup. 
