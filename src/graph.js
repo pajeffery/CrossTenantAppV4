@@ -7,33 +7,35 @@ async function handleGrant() {
     if (!siteUrl) return alert("Please enter a site URL");
 
     try {
-        status.innerText = "Authenticating and checking permissions...";
+        status.innerText = "Opening Authorization Window...";
 
-        // 1. Get the account at the MOMENT of the click
-        const accounts = myMSALObj.getAllAccounts();
-        if (accounts.length === 0) {
-            // If for some reason the session lost the account, force a sign-in
-            status.innerText = "No active session. Please sign in again.";
-            await signIn(); 
-        }
-
-        const dynamicRequest = {
+        // Define exactly what we need for this specific action
+        const grantRequest = {
             scopes: [
                 "https://graph.microsoft.com/Sites.FullControl.All",
                 "https://graph.microsoft.com/Directory.Read.All",
                 "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All"
             ],
-            account: myMSALObj.getAllAccounts()[0] // Get it freshly here
+            // prompt: "consent" // Uncomment this to ALWAYS force the consent screen
         };
 
-        // 2. Await the token properly
-        // This will now block the rest of the script until the popup is finished.
-        const token = await getTokenPopup(dynamicRequest);
+        // Simplified: Go straight to a popup. 
+        // This ignores the background cache and just asks the user directly.
+        const response = await myMSALObj.loginPopup(grantRequest);
         
-        if (!token) {
-            throw new Error("Failed to acquire access token.");
-        }
+        // The token is now in response.accessToken
+        const token = response.accessToken;
 
+        status.innerText = "Step 1: Resolving Site ID...";
+        
+        // Proceed with your Graph API calls using 'token'
+        // e.g., await resolveSiteId(siteUrl, token);
+
+    } catch (error) {
+        console.error("Authorization failed:", error);
+        status.innerText = "Error: " + error.message;
+    }
+}
         status.innerText = "Step 1: Resolving Site ID...";
         
         // ... (The rest of your graph.js code remains exactly the same starting from Step 2)
