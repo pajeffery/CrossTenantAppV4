@@ -22,7 +22,7 @@ app.http('saveClient', {
                 siteId: siteId,
                 adminEmail: adminEmail,
                 lastSetup: new Date().toISOString(),
-                isEnabled: true
+                isEnabled: false
             };
 
             await tableClient.upsertEntity(entity);
