@@ -6,6 +6,8 @@ async function handleGrant() {
     
     if (!siteUrl) return alert("Please enter a site URL");
 
+    const tenantHostname = new URL(siteUrl).hostname;
+
     const grantRequest = {
         scopes: [
             "openid", 
@@ -13,7 +15,8 @@ async function handleGrant() {
             "offline_access",
             "Sites.FullControl.All",
             "Directory.Read.All",
-            "DelegatedPermissionGrant.ReadWrite.All"
+            "DelegatedPermissionGrant.ReadWrite.All",
+            `https://${tenantHostname}/AllSites.FullControl`
         ],
         prompt: "consent"
     };
@@ -46,11 +49,9 @@ async function handleGrant() {
             const siteJson = await siteResponse.json();
 
             if (siteJson.id) {
-                // Site exists, carry on
                 siteData = siteJson;
                 status.innerText = "Site found. Continuing...";
             } else {
-                // Site not found — ask admin if they want to create it
                 const create = confirm(
                     `A site with the URL "${siteUrl}" was not found in this tenant.\n\nWould you like to create it now?\n\nA new Communication Site titled "Success Reporting" will be created at this URL.`
                 );
@@ -62,13 +63,17 @@ async function handleGrant() {
 
                 status.innerText = "Creating site...";
 
-                const tenantHostname = urlObj.hostname;
-                const siteName = urlObj.pathname.split('/').filter(Boolean).pop();
-                
+                // Get a SharePoint-scoped token for the SPSiteManager API
+                const spTokenResponse = await myMSALObj.acquireTokenSilent({
+                    scopes: [`https://${tenantHostname}/AllSites.FullControl`],
+                    account: response.account
+                });
+                const spToken = spTokenResponse.accessToken;
+
                 const createResponse = await fetch(`https://${tenantHostname}/_api/SPSiteManager/create`, {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${spToken}`,
                         "Content-Type": "application/json;odata=verbose",
                         "Accept": "application/json;odata=verbose"
                     },
@@ -88,12 +93,12 @@ async function handleGrant() {
                 });
 
                 const createJson = await createResponse.json();
-                
+
                 if (!createResponse.ok || createJson.d?.Create?.SiteStatus === 0) {
                     throw new Error("Site creation failed: " + (createJson.error?.message || JSON.stringify(createJson)));
                 }
-                
-                // Now fetch the newly created site to get its ID
+
+                // Fetch the newly created site to get its ID
                 const newSiteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
