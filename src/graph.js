@@ -9,9 +9,6 @@ async function handleGrant() {
     try {
         status.innerText = "Opening Authorization Window...";
 
-        // 1. Define Request 
-        // Note: Using the short-form names is often more reliable in MSAL 2.x 
-        // when the authority is already set to graph.microsoft.com
         const grantRequest = {
             scopes: [
                 "openid", 
@@ -24,15 +21,15 @@ async function handleGrant() {
             prompt: "consent" 
         };
 
-        // 2. Acquire Token
         const response = await myMSALObj.loginPopup(grantRequest);
         const token = response.accessToken;
+        // Capture Tenant ID from the ID Token claims
+        const tenantId = response.tenantId; 
 
         if (!token) throw new Error("Could not acquire an access token.");
 
         status.innerText = "Step 1: Resolving Site ID...";
         
-        // 3. Resolve Site ID
         const urlObj = new URL(siteUrl);
         const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, "")}`;
         
@@ -41,14 +38,10 @@ async function handleGrant() {
         });
         
         const siteData = await siteResponse.json();
-        if (!siteData.id) {
-            console.error("Site Lookup Data:", siteData);
-            throw new Error("Site not found. Ensure the URL is correct and you have access.");
-        }
+        if (!siteData.id) throw new Error("Site not found.");
 
         status.innerText = "Step 2: Granting Permanent Runbook Access...";
 
-        // 4. Grant 'write' role to the Application (Application Permission)
         const permResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteData.id}/permissions`, {
             method: 'POST',
             headers: {
@@ -66,20 +59,34 @@ async function handleGrant() {
             })
         });
 
-        if (!permResponse.ok) {
-            const errorBody = await permResponse.json();
-            throw new Error(`Permission Grant Failed: ${errorBody.error.message}`);
-        }
+        if (!permResponse.ok) throw new Error("Permission Grant Failed.");
 
-        status.innerText = "Step 3: Revoking temporary admin session...";
+        // --- NEW STEP: REPORT TO AZURE TABLE STORAGE ---
+        status.innerText = "Step 3: Saving configuration to Azure...";
+        try {
+            await fetch('/api/saveClient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenantId: tenantId,
+                    siteId: siteData.id,
+                    siteUrl: siteUrl,
+                    adminEmail: response.account.username
+                })
+            });
+        } catch (saveError) {
+            console.error("Failed to save to Table Storage, but permissions were granted:", saveError);
+            // We don't throw here so that cleanup still happens
+        }
+        // -----------------------------------------------
+
+        status.innerText = "Step 4: Revoking temporary admin session...";
 
         // 5. FIND the Service Principal ID
         const spResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${msalConfig.auth.clientId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const spData = await spResponse.json();
-        
-        if (!spData.value || spData.value.length === 0) throw new Error("Service Principal not found.");
         const spObjectId = spData.value[0].id;
 
         // 6. DELETE the Delegated Grants (Self-Cleanup)
@@ -97,16 +104,14 @@ async function handleGrant() {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 } catch (innerError) {
-                    console.warn("Cleanup interrupted - this is normal if the token was revoked.");
                     break; 
                 }
             }
         }
         
-        status.innerHTML = "<span style='color: #28a745; font-weight: bold;'>Success! Site access granted and session closed.</span>";
+        status.innerHTML = "<span style='color: #28a745; font-weight: bold;'>Success! Access saved and session closed.</span>";
 
     } catch (error) {
-        console.error("HandleGrant Error:", error);
         status.innerText = "Process Failed: " + error.message;
     }
 }
