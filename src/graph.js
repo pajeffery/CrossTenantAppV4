@@ -62,18 +62,28 @@ async function handleGrant() {
 
                 status.innerText = "Creating site...";
 
-                const createResponse = await fetch("https://graph.microsoft.com/v1.0/sites/root", {
+                const tenantHostname = urlObj.hostname;
+                const siteName = urlObj.pathname.split('/').filter(Boolean).pop();
+                
+                const createResponse = await fetch(`https://${tenantHostname}/_api/SPSiteManager/create`, {
                     method: "POST",
                     headers: {
                         Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json;odata=verbose",
+                        "Accept": "application/json;odata=verbose"
                     },
                     body: JSON.stringify({
-                        displayName: "Success Reporting",
-                        name: urlObj.pathname.split('/').filter(Boolean).pop(),
-                        description: "",
-                        webTemplate: "SITEPAGEPUBLISHING#0",
-                        isPublic: false
+                        request: {
+                            Title: "Success Reporting",
+                            Url: siteUrl,
+                            Lcid: 1033,
+                            ShareByEmailEnabled: false,
+                            Description: "",
+                            WebTemplate: "SITEPAGEPUBLISHING#0",
+                            SiteDesignId: "00000000-0000-0000-0000-000000000000",
+                            HubSiteId: "00000000-0000-0000-0000-000000000000",
+                            Owner: response.account.username
+                        }
                     })
                 });
 
@@ -82,9 +92,17 @@ async function handleGrant() {
                     throw new Error("Site creation failed: " + (err.error?.message || createResponse.status));
                 }
 
-                siteData = await createResponse.json();
-
-                if (!siteData.id) throw new Error("Site was created but no site ID was returned.");
+                const createJson = await createResponse.json();
+                if (!createResponse.ok || createJson.d?.Create?.SiteStatus === 0) {
+                    throw new Error("Site creation failed: " + JSON.stringify(createJson));
+                }
+                
+                // Now fetch the newly created site to get its ID
+                const newSiteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                siteData = await newSiteResponse.json();
+                if (!siteData.id) throw new Error("Site created but could not retrieve site ID.");
 
                 status.innerText = "Site created successfully. Continuing...";
             }
