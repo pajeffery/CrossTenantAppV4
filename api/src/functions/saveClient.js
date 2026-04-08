@@ -1,41 +1,34 @@
 const { app } = require('@azure/functions');
-const { TableClient } = require("@azure/data-tables");
 const { DefaultAzureCredential } = require("@azure/identity");
 
 app.http('saveClient', {
     methods: ['POST'],
     authLevel: 'anonymous',
     handler: async (request, context) => {
+        context.log("Diagnostic Start: Testing Managed Identity...");
+        
         try {
-            const { tenantId, siteUrl, siteId } = await request.json();
-
-            // MOVE INITIALIZATION HERE
-            const tableClient = new TableClient(
-                "https://crosstenantapp.table.core.windows.net",
-                "ClientData",
-                new DefaultAzureCredential()
-            );
-
-            const entity = {
-                partitionKey: "Clients",
-                rowKey: tenantId,
-                siteUrl: siteUrl,
-                siteId: siteId,
-                lastSetup: new Date().toISOString()
-            };
-
-            await tableClient.upsertEntity(entity);
+            const credential = new DefaultAzureCredential();
+            
+            // We ask for a token for the Azure Management API as a test
+            const token = await credential.getToken("https://management.azure.com/.default");
             
             return { 
                 status: 200, 
-                jsonBody: { message: "Success! Data saved." } 
+                jsonBody: { 
+                    message: "Identity is working!",
+                    expiresOn: token.expiresOnTimestamp,
+                    tokenType: typeof token.token === 'string' ? "Received Successfully" : "Malformed"
+                } 
             };
-
-        } catch (error) {
-            // This will now show up in your Browser "Response" tab
+        } catch (err) {
             return { 
                 status: 500, 
-                jsonBody: { error: error.message, stack: error.stack } 
+                jsonBody: { 
+                    diagnosticError: err.message,
+                    stack: err.stack,
+                    hint: "If you see 'expires_on' error here, the Identity is definitely not active on the underlying host."
+                } 
             };
         }
     }
