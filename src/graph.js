@@ -1,3 +1,5 @@
+/* /src/graph.js */
+
 async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
@@ -19,8 +21,6 @@ async function handleGrant() {
     try {
         status.innerText = "Opening Authorization Window...";
 
-        // acquireTokenPopup called immediately - before any awaits - so
-        // the browser treats it as a direct response to the button click
         let account = myMSALObj.getAllAccounts()[0];
         const response = account
             ? await myMSALObj.acquireTokenPopup({ ...grantRequest, account })
@@ -31,17 +31,67 @@ async function handleGrant() {
 
         if (!token) throw new Error("Could not acquire an access token.");
 
-        status.innerText = "Step 1: Resolving Site ID...";
-        
-        const urlObj = new URL(siteUrl);
-        const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, "")}`;
-        
-        const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        const siteData = await siteResponse.json();
-        if (!siteData.id) throw new Error("Site not found.");
+        status.innerText = "Step 1: Checking if site exists...";
+
+        let siteData;
+
+        try {
+            const urlObj = new URL(siteUrl);
+            const sitePath = `${urlObj.hostname}:${urlObj.pathname.replace(/\/$/, "")}`;
+
+            const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const siteJson = await siteResponse.json();
+
+            if (siteJson.id) {
+                // Site exists, carry on
+                siteData = siteJson;
+                status.innerText = "Site found. Continuing...";
+            } else {
+                // Site not found — ask admin if they want to create it
+                const create = confirm(
+                    `A site with the URL "${siteUrl}" was not found in this tenant.\n\nWould you like to create it now?\n\nA new Communication Site titled "Success Reporting" will be created at /sites/SuccessReporting.`
+                );
+
+                if (!create) {
+                    status.innerText = "Process cancelled.";
+                    return;
+                }
+
+                status.innerText = "Creating site...";
+
+                const createResponse = await fetch("https://graph.microsoft.com/v1.0/sites/root/sites", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        displayName: "Success Reporting",
+                        name: "SuccessReporting",
+                        description: "",
+                        template: "SITEPAGEPUBLISHING#0",
+                        isPublic: false
+                    })
+                });
+
+                if (!createResponse.ok) {
+                    const err = await createResponse.json();
+                    throw new Error("Site creation failed: " + (err.error?.message || createResponse.status));
+                }
+
+                siteData = await createResponse.json();
+
+                if (!siteData.id) throw new Error("Site was created but no site ID was returned.");
+
+                status.innerText = "Site created successfully. Continuing...";
+            }
+
+        } catch (siteError) {
+            throw new Error("Could not check or create site: " + siteError.message);
+        }
 
         status.innerText = "Step 2: Granting Permanent Runbook Access...";
 
@@ -65,6 +115,7 @@ async function handleGrant() {
         if (!permResponse.ok) throw new Error("Permission Grant Failed.");
 
         status.innerText = "Step 3: Saving configuration to Azure...";
+
         try {
             await fetch('/api/saveClient', {
                 method: 'POST',
