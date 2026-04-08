@@ -52,7 +52,7 @@ async function handleGrant() {
             } else {
                 // Site not found — ask admin if they want to create it
                 const create = confirm(
-                    `A site with the URL "${siteUrl}" was not found in this tenant.\n\nWould you like to create it now?\n\nA new Communication Site titled "Success Reporting" will be created at /sites/SuccessReporting.`
+                    `A site with the URL "${siteUrl}" was not found in this tenant.\n\nWould you like to create it now?\n\nA new Communication Site titled "Success Reporting" will be created at this URL.`
                 );
 
                 if (!create) {
@@ -62,7 +62,7 @@ async function handleGrant() {
 
                 status.innerText = "Creating site...";
 
-                const createResponse = await fetch("https://graph.microsoft.com/v1.0/sites/root/sites", {
+                const createResponse = await fetch("https://graph.microsoft.com/v1.0/sites/root", {
                     method: "POST",
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -70,9 +70,9 @@ async function handleGrant() {
                     },
                     body: JSON.stringify({
                         displayName: "Success Reporting",
-                        name: "SuccessReporting",
+                        name: urlObj.pathname.split('/').filter(Boolean).pop(),
                         description: "",
-                        template: "SITEPAGEPUBLISHING#0",
+                        webTemplate: "SITEPAGEPUBLISHING#0",
                         isPublic: false
                     })
                 });
