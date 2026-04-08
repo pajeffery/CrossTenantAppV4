@@ -1,36 +1,37 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require("@azure/data-tables");
-
-// Use Managed Identity (no keys needed!)
-const { DefaultAzureCredential } = require("@azure/identity");
-
-//const tableClient = new TableClient(
-//    "https://crosstenantapp.table.core.windows.net",
-//    "ClientData",
-//    new DefaultAzureCredential()
-//);
+// Change this line
+const { ManagedIdentityCredential } = require("@azure/identity"); 
 
 app.http('saveClient', {
     methods: ['POST'],
     authLevel: 'anonymous',
     handler: async (request, context) => {
-        const tableClient = new TableClient(
-            "https://crosstenantapp.table.core.windows.net",
-            "ClientData",
-            new DefaultAzureCredential()
-        );
-       
-        const { tenantId, siteUrl, siteId } = await request.json();
+        try {
+            const { tenantId, siteUrl, siteId } = await request.json();
 
-        const entity = {
-            partitionKey: "Clients",
-            rowKey: tenantId, // Use Tenant ID as the unique identifier
-            siteUrl: siteUrl,
-            siteId: siteId,
-            lastSetup: new Date().toISOString()
-        };
+            // Initialize inside the handler to ensure the environment is ready
+            const credential = new ManagedIdentityCredential();
+            const tableClient = new TableClient(
+                "https://crosstenantapp.table.core.windows.net",
+                "ClientData",
+                credential
+            );
 
-        await tableClient.upsertEntity(entity);
-        return { status: 200, jsonBody: { message: "Saved to Azure" } };
+            const entity = {
+                partitionKey: "Clients",
+                rowKey: tenantId,
+                siteUrl: siteUrl,
+                siteId: siteId,
+                lastSetup: new Date().toISOString()
+            };
+
+            await tableClient.upsertEntity(entity);
+            return { status: 200, jsonBody: { message: "Saved to Azure" } };
+            
+        } catch (error) {
+            context.log(`Error in saveClient: ${error.message}`);
+            return { status: 500, jsonBody: { error: error.message } };
+        }
     }
 });
