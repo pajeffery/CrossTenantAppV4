@@ -62,11 +62,19 @@ async function handleGrant() {
 
                 status.innerText = "Creating site...";
 
-                // Get a SharePoint-scoped token for the SPSiteManager API
-                const spTokenResponse = await myMSALObj.acquireTokenSilent({
-                    scopes: [`https://${tenantHostname}/AllSites.FullControl`],
-                    account: response.account
-                });
+                let spTokenResponse;
+                try {
+                    spTokenResponse = await myMSALObj.acquireTokenSilent({
+                        scopes: [`https://${tenantHostname}/AllSites.FullControl`],
+                        account: response.account
+                    });
+                } catch (silentError) {
+                    spTokenResponse = await myMSALObj.acquireTokenPopup({
+                        scopes: [`https://${tenantHostname}/AllSites.FullControl`],
+                        account: response.account,
+                        prompt: "consent"
+                    });
+                }
                 const spToken = spTokenResponse.accessToken;
 
                 const createResponse = await fetch(`https://${tenantHostname}/_api/SPSiteManager/create`, {
