@@ -87,14 +87,10 @@ async function handleGrant() {
                     })
                 });
 
-                if (!createResponse.ok) {
-                    const err = await createResponse.json();
-                    throw new Error("Site creation failed: " + (err.error?.message || createResponse.status));
-                }
-
                 const createJson = await createResponse.json();
+                
                 if (!createResponse.ok || createJson.d?.Create?.SiteStatus === 0) {
-                    throw new Error("Site creation failed: " + JSON.stringify(createJson));
+                    throw new Error("Site creation failed: " + (createJson.error?.message || JSON.stringify(createJson)));
                 }
                 
                 // Now fetch the newly created site to get its ID
