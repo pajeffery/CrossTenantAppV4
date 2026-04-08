@@ -1,3 +1,5 @@
+/* /src/graph.js */
+
 async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
@@ -18,15 +20,9 @@ async function handleGrant() {
         prompt: "consent"
     };
 
-    const spRequest = {
-        scopes: [`https://${tenantHostname}/AllSites.FullControl`],
-        prompt: "consent"
-    };
-
     try {
         status.innerText = "Opening Authorization Window...";
 
-        // Step A: Get Graph token — direct response to button click, no awaits before this
         let account = myMSALObj.getAllAccounts()[0];
         const response = account
             ? await myMSALObj.acquireTokenPopup({ ...grantRequest, account })
@@ -37,14 +33,6 @@ async function handleGrant() {
         account = response.account;
 
         if (!token) throw new Error("Could not acquire an access token.");
-
-        // Step B: Get SharePoint token — second popup, still early in the flow
-        status.innerText = "Authorizing SharePoint access...";
-        const spResponse = await myMSALObj.acquireTokenPopup({
-            ...spRequest,
-            account
-        });
-        const spToken = spResponse.accessToken;
 
         status.innerText = "Step 1: Checking if site exists...";
 
@@ -64,59 +52,12 @@ async function handleGrant() {
                 siteData = siteJson;
                 status.innerText = "Site found. Continuing...";
             } else {
-                const create = confirm(
-                    `A site with the URL "${siteUrl}" was not found in this tenant.\n\nWould you like to create it now?\n\nA new Communication Site titled "Success Reporting" will be created at this URL.`
-                );
-
-                if (!create) {
-                    status.innerText = "Process cancelled.";
-                    return;
-                }
-
-                status.innerText = "Creating site...";
-
-                const createResponse = await fetch(`https://${tenantHostname}/_api/SPSiteManager/create`, {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${spToken}`,
-                        "Content-Type": "application/json;odata=verbose",
-                        "Accept": "application/json;odata=verbose"
-                    },
-                    body: JSON.stringify({
-                        request: {
-                            Title: "Success Reporting",
-                            Url: siteUrl,
-                            Lcid: 1033,
-                            ShareByEmailEnabled: false,
-                            Description: "",
-                            WebTemplate: "SITEPAGEPUBLISHING#0",
-                            SiteDesignId: "00000000-0000-0000-0000-000000000000",
-                            HubSiteId: "00000000-0000-0000-0000-000000000000",
-                            Owner: account.username
-                        }
-                    })
-                });
-
-                const createJson = await createResponse.json();
-
-                if (!createResponse.ok || createJson.d?.Create?.SiteStatus === 0) {
-                    throw new Error("Site creation failed: " + (createJson.error?.message || JSON.stringify(createJson)));
-                }
-
-                status.innerText = "Waiting for site to provision...";
-                await new Promise(resolve => setTimeout(resolve, 15000));
-
-                const newSiteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                siteData = await newSiteResponse.json();
-                if (!siteData.id) throw new Error("Site created but could not retrieve site ID.");
-
-                status.innerText = "Site created successfully. Continuing...";
+                status.innerText = "Process Failed: A site with that URL could not be found in this tenant. Please check the URL and try again.";
+                return;
             }
 
         } catch (siteError) {
-            throw new Error("Could not check or create site: " + siteError.message);
+            throw new Error("Could not check site: " + siteError.message);
         }
 
         status.innerText = "Step 2: Granting Permanent Runbook Access...";
