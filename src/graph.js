@@ -15,8 +15,7 @@ async function handleGrant() {
             "offline_access",
             "Sites.FullControl.All",
             "Directory.Read.All",
-            "DelegatedPermissionGrant.ReadWrite.All",
-            `https://${tenantHostname}/AllSites.FullControl`
+            "DelegatedPermissionGrant.ReadWrite.All"
         ],
         prompt: "consent"
     };
@@ -97,6 +96,10 @@ async function handleGrant() {
                 if (!createResponse.ok || createJson.d?.Create?.SiteStatus === 0) {
                     throw new Error("Site creation failed: " + (createJson.error?.message || JSON.stringify(createJson)));
                 }
+
+                // Wait for SharePoint to finish provisioning
+                status.innerText = "Waiting for site to provision...";
+                await new Promise(resolve => setTimeout(resolve, 15000));
 
                 // Fetch the newly created site to get its ID
                 const newSiteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
