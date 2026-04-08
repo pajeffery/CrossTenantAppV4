@@ -21,7 +21,8 @@ app.http('saveClient', {
                 siteUrl: siteUrl,
                 siteId: siteId,
                 adminEmail: adminEmail,
-                lastSetup: new Date().toISOString()
+                lastSetup: new Date().toISOString(),
+                isEnabled: true
             };
 
             await tableClient.upsertEntity(entity);
