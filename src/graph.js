@@ -21,10 +21,19 @@ async function handleGrant() {
             prompt: "consent" 
         };
 
-        const response = await myMSALObj.loginPopup(grantRequest);
+        // Ensure user is signed in first
+        let account = myMSALObj.getAllAccounts()[0];
+        if (!account) {
+            const loginResponse = await myMSALObj.loginPopup({ scopes: ["User.Read"] });
+            account = loginResponse.account;
+        }
+        
+        const response = await myMSALObj.acquireTokenPopup({
+            ...grantRequest,
+            account: account
+        });
         const token = response.accessToken;
-        // Capture Tenant ID from the ID Token claims
-        const tenantId = response.tenantId; 
+        const tenantId = response.tenantId;
 
         if (!token) throw new Error("Could not acquire an access token.");
 
