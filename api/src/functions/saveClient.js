@@ -4,16 +4,22 @@ const { TableClient } = require("@azure/data-tables");
 // Use Managed Identity (no keys needed!)
 const { DefaultAzureCredential } = require("@azure/identity");
 
-const tableClient = new TableClient(
-    "https://crosstenantapp.table.core.windows.net",
-    "ClientData",
-    new DefaultAzureCredential()
-);
+//const tableClient = new TableClient(
+//    "https://crosstenantapp.table.core.windows.net",
+//    "ClientData",
+//    new DefaultAzureCredential()
+//);
 
 app.http('saveClient', {
     methods: ['POST'],
     authLevel: 'anonymous',
     handler: async (request, context) => {
+        const tableClient = new TableClient(
+            "https://crosstenantapp.table.core.windows.net",
+            "ClientData",
+            new DefaultAzureCredential()
+        );
+       
         const { tenantId, siteUrl, siteId } = await request.json();
 
         const entity = {
