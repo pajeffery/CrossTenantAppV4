@@ -1,5 +1,3 @@
-/* /src/graph.js */
-
 async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
@@ -20,9 +18,15 @@ async function handleGrant() {
         prompt: "consent"
     };
 
+    const spRequest = {
+        scopes: [`https://${tenantHostname}/AllSites.FullControl`],
+        prompt: "consent"
+    };
+
     try {
         status.innerText = "Opening Authorization Window...";
 
+        // Step A: Get Graph token — direct response to button click, no awaits before this
         let account = myMSALObj.getAllAccounts()[0];
         const response = account
             ? await myMSALObj.acquireTokenPopup({ ...grantRequest, account })
@@ -30,8 +34,17 @@ async function handleGrant() {
 
         const token = response.accessToken;
         const tenantId = response.tenantId;
+        account = response.account;
 
         if (!token) throw new Error("Could not acquire an access token.");
+
+        // Step B: Get SharePoint token — second popup, still early in the flow
+        status.innerText = "Authorizing SharePoint access...";
+        const spResponse = await myMSALObj.acquireTokenPopup({
+            ...spRequest,
+            account
+        });
+        const spToken = spResponse.accessToken;
 
         status.innerText = "Step 1: Checking if site exists...";
 
@@ -62,21 +75,6 @@ async function handleGrant() {
 
                 status.innerText = "Creating site...";
 
-                let spTokenResponse;
-                try {
-                    spTokenResponse = await myMSALObj.acquireTokenSilent({
-                        scopes: [`https://${tenantHostname}/AllSites.FullControl`],
-                        account: response.account
-                    });
-                } catch (silentError) {
-                    spTokenResponse = await myMSALObj.acquireTokenPopup({
-                        scopes: [`https://${tenantHostname}/AllSites.FullControl`],
-                        account: response.account,
-                        prompt: "consent"
-                    });
-                }
-                const spToken = spTokenResponse.accessToken;
-
                 const createResponse = await fetch(`https://${tenantHostname}/_api/SPSiteManager/create`, {
                     method: "POST",
                     headers: {
@@ -94,7 +92,7 @@ async function handleGrant() {
                             WebTemplate: "SITEPAGEPUBLISHING#0",
                             SiteDesignId: "00000000-0000-0000-0000-000000000000",
                             HubSiteId: "00000000-0000-0000-0000-000000000000",
-                            Owner: response.account.username
+                            Owner: account.username
                         }
                     })
                 });
@@ -105,11 +103,9 @@ async function handleGrant() {
                     throw new Error("Site creation failed: " + (createJson.error?.message || JSON.stringify(createJson)));
                 }
 
-                // Wait for SharePoint to finish provisioning
                 status.innerText = "Waiting for site to provision...";
                 await new Promise(resolve => setTimeout(resolve, 15000));
 
-                // Fetch the newly created site to get its ID
                 const newSiteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${sitePath}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -154,7 +150,7 @@ async function handleGrant() {
                     tenantId: tenantId,
                     siteId: siteData.id,
                     siteUrl: siteUrl,
-                    adminEmail: response.account.username
+                    adminEmail: account.username
                 })
             });
         } catch (saveError) {
@@ -163,10 +159,10 @@ async function handleGrant() {
 
         status.innerText = "Step 4: Revoking temporary admin session...";
 
-        const spResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${msalConfig.auth.clientId}'`, {
+        const spServiceResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${msalConfig.auth.clientId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
-        const spData = await spResponse.json();
+        const spData = await spServiceResponse.json();
         const spObjectId = spData.value[0].id;
 
         const grantsResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${spObjectId}'`, {
