@@ -1,37 +1,31 @@
-/* /src/graph.js */
-
 async function handleGrant() {
     const siteUrl = document.getElementById('siteUrl').value;
     const status = document.getElementById('statusMessage');
     
     if (!siteUrl) return alert("Please enter a site URL");
 
+    const grantRequest = {
+        scopes: [
+            "openid", 
+            "profile", 
+            "offline_access",
+            "Sites.FullControl.All",
+            "Directory.Read.All",
+            "DelegatedPermissionGrant.ReadWrite.All"
+        ],
+        prompt: "consent"
+    };
+
     try {
         status.innerText = "Opening Authorization Window...";
 
-        const grantRequest = {
-            scopes: [
-                "openid", 
-                "profile", 
-                "Offline_Access",
-                "Sites.FullControl.All",
-                "Directory.Read.All",
-                "DelegatedPermissionGrant.ReadWrite.All"
-            ],
-            prompt: "consent" 
-        };
-
-        // Ensure user is signed in first
+        // acquireTokenPopup called immediately - before any awaits - so
+        // the browser treats it as a direct response to the button click
         let account = myMSALObj.getAllAccounts()[0];
-        if (!account) {
-            const loginResponse = await myMSALObj.loginPopup({ scopes: ["User.Read"] });
-            account = loginResponse.account;
-        }
-        
-        const response = await myMSALObj.acquireTokenPopup({
-            ...grantRequest,
-            account: account
-        });
+        const response = account
+            ? await myMSALObj.acquireTokenPopup({ ...grantRequest, account })
+            : await myMSALObj.loginPopup(grantRequest);
+
         const token = response.accessToken;
         const tenantId = response.tenantId;
 
@@ -70,7 +64,6 @@ async function handleGrant() {
 
         if (!permResponse.ok) throw new Error("Permission Grant Failed.");
 
-        // --- NEW STEP: REPORT TO AZURE TABLE STORAGE ---
         status.innerText = "Step 3: Saving configuration to Azure...";
         try {
             await fetch('/api/saveClient', {
@@ -85,20 +78,16 @@ async function handleGrant() {
             });
         } catch (saveError) {
             console.error("Failed to save to Table Storage, but permissions were granted:", saveError);
-            // We don't throw here so that cleanup still happens
         }
-        // -----------------------------------------------
 
         status.innerText = "Step 4: Revoking temporary admin session...";
 
-        // 5. FIND the Service Principal ID
         const spResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${msalConfig.auth.clientId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const spData = await spResponse.json();
         const spObjectId = spData.value[0].id;
 
-        // 6. DELETE the Delegated Grants (Self-Cleanup)
         const grantsResponse = await fetch(`https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$filter=clientId eq '${spObjectId}'`, {
             headers: { Authorization: `Bearer ${token}` }
         });
