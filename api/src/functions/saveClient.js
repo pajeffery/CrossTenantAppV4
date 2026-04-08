@@ -1,7 +1,6 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require("@azure/data-tables");
-// Change this line
-const { ManagedIdentityCredential } = require("@azure/identity"); 
+const { DefaultAzureCredential } = require("@azure/identity");
 
 app.http('saveClient', {
     methods: ['POST'],
@@ -10,12 +9,11 @@ app.http('saveClient', {
         try {
             const { tenantId, siteUrl, siteId } = await request.json();
 
-            // Initialize inside the handler to ensure the environment is ready
-            const credential = new ManagedIdentityCredential();
+            // MOVE INITIALIZATION HERE
             const tableClient = new TableClient(
                 "https://crosstenantapp.table.core.windows.net",
                 "ClientData",
-                credential
+                new DefaultAzureCredential()
             );
 
             const entity = {
@@ -27,11 +25,18 @@ app.http('saveClient', {
             };
 
             await tableClient.upsertEntity(entity);
-            return { status: 200, jsonBody: { message: "Saved to Azure" } };
             
+            return { 
+                status: 200, 
+                jsonBody: { message: "Success! Data saved." } 
+            };
+
         } catch (error) {
-            context.log(`Error in saveClient: ${error.message}`);
-            return { status: 500, jsonBody: { error: error.message } };
+            // This will now show up in your Browser "Response" tab
+            return { 
+                status: 500, 
+                jsonBody: { error: error.message, stack: error.stack } 
+            };
         }
     }
 });
