@@ -1,6 +1,5 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require("@azure/data-tables");
-const { ManagedIdentityCredential } = require("@azure/identity");
 
 app.http('saveClient', {
     methods: ['POST'],
@@ -9,12 +8,9 @@ app.http('saveClient', {
         try {
             const { tenantId, siteUrl, siteId, adminEmail } = await request.json();
 
-            const credential = new ManagedIdentityCredential();
-            
-            const tableClient = new TableClient(
-                "https://crosstenantapp.table.core.windows.net",
-                "ClientData",
-                credential
+            const tableClient = TableClient.fromConnectionString(
+                process.env.STORAGE_CONNECTION_STRING,
+                "ClientData"
             );
 
             await tableClient.createTable().catch(() => {});
