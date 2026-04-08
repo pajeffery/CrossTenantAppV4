@@ -9,8 +9,8 @@ app.http('saveClient', {
         try {
             const { tenantId, siteUrl, siteId, adminEmail } = await request.json();
 
-            const credential = new ManagedIdentityCredential(process.env.AZURE_CLIENT_ID);
-
+            const credential = new ManagedIdentityCredential();
+            
             const tableClient = new TableClient(
                 "https://crosstenantapp.table.core.windows.net",
                 "ClientData",
